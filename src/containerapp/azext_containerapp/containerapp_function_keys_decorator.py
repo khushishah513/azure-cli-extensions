@@ -6,13 +6,8 @@
 # pylint: disable=line-too-long, broad-except, logging-format-interpolation
 
 from knack.log import get_logger
-from typing import Any, Dict
-
-from azure.cli.core.commands import AzCliCommand
 from azure.cli.core.azclierror import ValidationError
 from azure.cli.command_modules.containerapp.base_resource import BaseResource
-
-from ._clients import ContainerAppFunctionsPreviewClient
 from ._client_factory import handle_raw_exception
 from ._validators import validate_basic_arguments, validate_revision_and_get_name, validate_functionapp_kind
 from ._utils import get_latest_running_replica
@@ -22,9 +17,6 @@ logger = get_logger(__name__)
 
 class ContainerAppFunctionKeysDecorator(BaseResource):
     """Base decorator for Container App Function Keys operations"""
-
-    def __init__(self, cmd: AzCliCommand, client: Any, raw_parameters: Dict, models: str):
-        super().__init__(cmd, client, raw_parameters, models)
 
     def get_argument_function_name(self):
         return self.get_param("function_name")
@@ -86,18 +78,15 @@ class ContainerAppFunctionKeysDecorator(BaseResource):
     def validate_function_name_requirement(self, key_type):
         """Validate function name is provided when required for functionKey type"""
         function_name = self.get_argument_function_name()
-        
+
         if key_type == "functionKey" and not function_name:
             raise ValidationError("Function name is required when key-type is 'functionKey'.")
-        
+
         return function_name
 
 
 class ContainerAppFunctionKeysShowDecorator(ContainerAppFunctionKeysDecorator):
     """Decorator for showing specific function keys"""
-
-    def __init__(self, cmd: AzCliCommand, client: Any, raw_parameters: Dict, models: str):
-        super().__init__(cmd, client, raw_parameters, models)
 
     def validate_show_arguments(self):
         """Validate arguments required for showing function keys"""
@@ -133,12 +122,9 @@ class ContainerAppFunctionKeysShowDecorator(ContainerAppFunctionKeysDecorator):
 class ContainerAppFunctionKeysListDecorator(ContainerAppFunctionKeysDecorator):
     """Decorator for listing function keys"""
 
-    def __init__(self, cmd: AzCliCommand, client: Any, raw_parameters: Dict, models: str):
-        super().__init__(cmd, client, raw_parameters, models)
-
     def validate_list_arguments(self):
         """Validate arguments required for listing function keys"""
-        resource_group_name, name, revision_name, key_type, replica_name, container_name  = self.validate_common_arguments()
+        resource_group_name, name, revision_name, key_type, replica_name, container_name = self.validate_common_arguments()
         function_name = self.validate_function_name_requirement(key_type)
 
         return resource_group_name, name, revision_name, key_type, function_name, replica_name, container_name
@@ -165,12 +151,9 @@ class ContainerAppFunctionKeysListDecorator(ContainerAppFunctionKeysDecorator):
 class ContainerAppFunctionKeysSetDecorator(ContainerAppFunctionKeysDecorator):
     """Decorator for creating/updating function keys"""
 
-    def __init__(self, cmd: AzCliCommand, client: Any, raw_parameters: Dict, models: str):
-        super().__init__(cmd, client, raw_parameters, models)
-
     def validate_set_arguments(self):
         """Validate arguments required for setting/updating function keys"""
-        resource_group_name, name, revision_name, key_type, replica_name, container_name  = self.validate_common_arguments()
+        resource_group_name, name, revision_name, key_type, replica_name, container_name = self.validate_common_arguments()
         key_name = self.get_argument_key_name()
         key_value = self.get_argument_key_value()
         function_name = self.validate_function_name_requirement(key_type)

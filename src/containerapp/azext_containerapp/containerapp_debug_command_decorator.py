@@ -6,12 +6,8 @@
 # pylint: disable=line-too-long, broad-except, logging-format-interpolation, too-many-public-methods, too-many-boolean-expressions, logging-fstring-interpolation
 
 from knack.log import get_logger
-from typing import Any, Dict
 import urllib
-import json
-
-from azure.cli.core.commands import AzCliCommand
-from azure.cli.core.azclierror import ValidationError, RequiredArgumentMissingError
+from azure.cli.core.azclierror import ValidationError
 from azure.cli.command_modules.containerapp.base_resource import BaseResource
 from azure.cli.core.commands.client_factory import get_subscription_id
 from azure.cli.core.util import send_raw_request
@@ -24,9 +20,6 @@ logger = get_logger(__name__)
 
 class ContainerAppDebugCommandDecorator(BaseResource):
     """Base decorator for Container App Debug Command Operations"""
-    
-    def __init__(self, cmd: AzCliCommand, client: Any, raw_parameters: Dict, models: str):
-        super().__init__(cmd, client, raw_parameters, models)
 
     def get_argument_resource_group_name(self):
         return self.get_param('resource_group_name')
@@ -42,7 +35,7 @@ class ContainerAppDebugCommandDecorator(BaseResource):
 
     def get_argument_container_name(self):
         return self.get_param("container_name")
-    
+
     def get_argument_command(self):
         return self.get_param("command")
 
@@ -59,13 +52,13 @@ class ContainerAppDebugCommandDecorator(BaseResource):
     def _get_logstream_endpoint(self, cmd, resource_group_name, container_app_name, revision_name, replica_name, container_name):
         """Get the logstream endpoint for the specified container in the replica"""
         containers = self.client.get_replica(cmd,
-                                            resource_group_name,
-                                            container_app_name, revision_name, replica_name)["properties"]["containers"]
+                                             resource_group_name,
+                                             container_app_name, revision_name, replica_name)["properties"]["containers"]
         container_info = [c for c in containers if c["name"] == container_name]
         if not container_info:
             raise ValidationError(f"Error retrieving container in revision '{revision_name}' in the container app '{container_app_name}'.")
         return container_info[0]["logStreamEndpoint"]
-    
+
     def _get_url(self, cmd, resource_group_name, container_app_name, revision_name, replica_name, container_name, command):
         """Get the debug url for the specified container in the replica"""
         base_url = self._get_logstream_endpoint(cmd, resource_group_name, container_app_name, revision_name, replica_name, container_name)
@@ -73,14 +66,14 @@ class ContainerAppDebugCommandDecorator(BaseResource):
         sub = get_subscription_id(cmd.cli_ctx)
         encoded_cmd = urllib.parse.quote_plus(command)
         debug_url = (f"{proxy_api_url}/subscriptions/{sub}/resourceGroups/{resource_group_name}/containerApps/{container_app_name}"
-                f"/revisions/{revision_name}/replicas/{replica_name}/debug"
-                f"?targetContainer={container_name}&command={encoded_cmd}")
+                     f"/revisions/{revision_name}/replicas/{replica_name}/debug"
+                     f"?targetContainer={container_name}&command={encoded_cmd}")
         return debug_url
 
     def _get_auth_token(self, cmd, resource_group_name, container_app_name):
         token_response = self.client.get_auth_token(cmd, resource_group_name, container_app_name)
         return token_response["properties"]["token"]
-    
+
     def execute_Command(self, cmd):
         """Execute the command in the specified container in the replica"""
         resource_group_name = self.get_argument_resource_group_name()

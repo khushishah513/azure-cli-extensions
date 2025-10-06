@@ -15,7 +15,7 @@ import re
 import requests
 import shutil
 import packaging.version as SemVer
-import random 
+import random
 
 from enum import Enum
 from urllib.request import urlopen
@@ -835,8 +835,9 @@ def create_acrpull_role_assignment_if_needed(cmd, registry_server, registry_iden
                     time.sleep(5)
 
 
-def get_latest_running_replica(cmd, resource_group_name, container_app_name, revision_name):
-    logger.debug(f"Getting latest running replica for container app: name='{container_app_name}', resource_group='{resource_group_name}', revision='{revision_name}'")
+def get_random_replica(cmd, resource_group_name, container_app_name, revision_name):
+    logger.debug(f"Getting random replica for container app: name='{container_app_name}', resource_group='{resource_group_name}', revision='{revision_name}'")
+
     try:
         replicas = ContainerAppClient.list_replicas(
             cmd=cmd,
@@ -866,11 +867,11 @@ def get_latest_running_replica(cmd, resource_group_name, container_app_name, rev
     replica = max(running_replicas, key=lambda r: r.get("properties", {}).get("createdTime", "1900-01-01T00:00:00Z"))
     replica_name = replica.get("name")
     container_name = replica.get("properties", {}).get("containers", [{}])[0].get("name")
-    
+
     logger.debug(f"Selected random replica: '{replica_name}' with container: '{container_name}'")
-    
+
     if not replica_name:
         logger.debug(f"Could not extract replica name from selected replica: {replica}")
         raise CLIError(f"Could not determine replica name for revision '{revision_name}' of container app '{container_app_name}'.")
-    
+
     return replica_name, container_name

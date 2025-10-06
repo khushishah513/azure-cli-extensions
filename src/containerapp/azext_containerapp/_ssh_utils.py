@@ -8,9 +8,7 @@
 from azure.cli.command_modules.containerapp._ssh_utils import WebSocketConnection, SSH_TERM_RESIZE_PREFIX, \
     SSH_DEFAULT_ENCODING, read_ssh
 from azure.cli.core.commands.client_factory import get_subscription_id
-from azure.cli.core.util import send_raw_request
 
-import urllib
 from knack.log import get_logger
 
 logger = get_logger(__name__)
@@ -24,10 +22,11 @@ class DebugWebSocketConnection(WebSocketConnection):
         sub = get_subscription_id(cmd.cli_ctx)
         base_url = self._logstream_endpoint
         proxy_api_url = base_url[:base_url.index("/subscriptions/")].replace("https://", "")
-        debug_url = (f"wss://{proxy_api_url}/subscriptions/{sub}/resourceGroups/{resource_group_name}/containerApps/{name}"
-                f"/revisions/{revision}/replicas/{replica}/debug"
-                f"?targetContainer={container}")
+        debug_url = (f"wss://{proxy_api_url}/subscriptions/{sub}/resourceGroups/{resource_group_name}/"
+                     f"containerApps/{name}/revisions/{revision}/replicas/{replica}/debug"
+                     f"?targetContainer={container}")
         return debug_url
+
 
 def read_debug_ssh(connection: WebSocketConnection, response_encodings):
     from shutil import get_terminal_size
