@@ -855,13 +855,13 @@ def get_random_replica(cmd, resource_group_name, container_app_name, revision_na
 
     # Filter replicas by running state
     running_replicas = [
-        replica for replica in replicas 
+        replica for replica in replicas
         if replica.get("properties", {}).get("runningState") == "Running"
     ]
-    
+
     if not running_replicas:
         raise ValidationError(f"No running replicas found for revision '{revision_name}' of container app '{container_app_name}'.")
-    
+
     # Select the replica with the latest creation time
     # createdTime is in ISO 8601 format (e.g., "2025-10-03T00:56:33Z") which is lexicographically sortable
     replica = max(running_replicas, key=lambda r: r.get("properties", {}).get("createdTime", "1900-01-01T00:00:00Z"))
