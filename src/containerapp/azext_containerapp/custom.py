@@ -130,7 +130,7 @@ from ._clients import (
     HttpRouteConfigPreviewClient,
     LabelHistoryPreviewClient,
     ContainerAppFunctionsPreviewClient
-    )
+)
 from ._dev_service_utils import DevServiceUtils
 from ._models import (
     GitHubActionConfiguration,
@@ -3633,34 +3633,34 @@ def containerapp_debug(cmd, resource_group_name, name, container=None, revision=
         debug_command_decorator.validate_arguments()
         logger.debug("Executing command: %s", debug_command)
         return debug_command_decorator.execute_Command(cmd=cmd)
-    else:
-        conn = DebugWebSocketConnection(
-            cmd=cmd,
-            resource_group_name=resource_group_name,
-            name=name,
-            revision=revision,
-            replica=replica,
-            container=container
-        )
 
-        encodings = [SSH_DEFAULT_ENCODING, SSH_BACKUP_ENCODING]
-        reader = threading.Thread(target=read_debug_ssh, args=(conn, encodings))
-        reader.daemon = True
-        reader.start()
+    conn = DebugWebSocketConnection(
+        cmd=cmd,
+        resource_group_name=resource_group_name,
+        name=name,
+        revision=revision,
+        replica=replica,
+        container=container
+    )
 
-        writer = get_stdin_writer(conn)
-        writer.daemon = True
-        writer.start()
+    encodings = [SSH_DEFAULT_ENCODING, SSH_BACKUP_ENCODING]
+    reader = threading.Thread(target=read_debug_ssh, args=(conn, encodings))
+    reader.daemon = True
+    reader.start()
 
-        while conn.is_connected:
-            if not reader.is_alive() or not writer.is_alive():
-                conn.disconnect()
+    writer = get_stdin_writer(conn)
+    writer.daemon = True
+    writer.start()
 
-            try:
-                time.sleep(0.1)
-            except KeyboardInterrupt:
-                if conn.is_connected:
-                    conn.send(SSH_CTRL_C_MSG)
+    while conn.is_connected:
+        if not reader.is_alive() or not writer.is_alive():
+            conn.disconnect()
+
+        try:
+            time.sleep(0.1)
+        except KeyboardInterrupt:
+            if conn.is_connected:
+                conn.send(SSH_CTRL_C_MSG)
 
 
 def create_http_route_config(cmd, resource_group_name, name, http_route_config_name, yaml):
@@ -4084,12 +4084,8 @@ def set_containerapp_function_keys(cmd, resource_group_name, name, key_type, key
 
     return containerapp_function_keys_set_decorator.set_keys()
 
-def get_function_invocations_summary(cmd,
-                                   resource_group_name,
-                                   name,
-                                   function_name,
-                                   revision_name=None,
-                                   timespan="30d"):
+
+def get_function_invocations_summary(cmd, resource_group_name, name, function_name, revision_name=None, timespan="30d"):
     """Get function invocation summary from Application Insights."""
     raw_parameters = {
         'resource_group_name': resource_group_name,
@@ -4109,13 +4105,7 @@ def get_function_invocations_summary(cmd,
     return result
 
 
-def get_function_invocations_traces(cmd,
-                                  resource_group_name,
-                                  name,
-                                  function_name,
-                                  revision_name=None,
-                                  timespan="30d",
-                                  limit=20):
+def get_function_invocations_traces(cmd, resource_group_name, name, function_name, revision_name=None, timespan="30d", limit=20):
     """Get function invocation traces from Application Insights."""
     raw_parameters = {
         'resource_group_name': resource_group_name,

@@ -84,6 +84,7 @@ class LabelHistoryPreviewClient:
         r = send_raw_request(cmd.cli_ctx, "GET", request_url, body=None)
         return r.json()
 
+
 class ContainerAppsJobPreviewClient(ContainerAppsJobClient):
     api_version = PREVIEW_API_VERSION
     LOG_STREAM_API_VERSION = "2023-11-02-preview"
@@ -377,9 +378,9 @@ class ContainerAppFunctionsPreviewClient():
         if not r:
             raise CLIError(f"Error retrieving function '{function_name}' for container app '{container_app_name}'.")
         return r.json()
- 
+
     @classmethod
-    def get_function_invocation_summary(cls, cmd, resource_group_name, container_app_name, revision_name, function_name, timespan="30d"):      
+    def get_function_invocation_summary(cls, cmd, resource_group_name, container_app_name, revision_name, function_name, timespan="30d"):
         # Fetch the app insights resource app id
         app_id = cls._get_app_insights_id(cmd, resource_group_name, container_app_name, revision_name)
 
@@ -392,7 +393,7 @@ class ContainerAppFunctionsPreviewClient():
             f"| where operation_Name =~ '{function_name}' or functionNameFromCustomDimension =~ '{function_name}' "
             f"| summarize SuccessCount = coalesce(countif(success == true), 0), ErrorCount = coalesce(countif(success == false), 0)"
         )
-        
+
         try:
             result = cls._execute_app_insights_query(cmd, app_id, invocation_summary_query, "getLast30DaySummary")
             return result
@@ -456,30 +457,28 @@ class ContainerAppFunctionsPreviewClient():
             raise CLIError(f"ApplicationId not found in APPLICATIONINSIGHTS_CONNECTION_STRING for containerapp '{container_app_name}'.")
         return app_id
 
-    
     @classmethod
     def _execute_app_insights_query(cls, cmd, app_id, query, queryType, timespan="30D"):
-        import json
-        
+
         # Application Insights REST API endpoint
         api_endpoint = "https://api.applicationinsights.io"
         url = f"{api_endpoint}/v1/apps/{app_id}/query?api-version={cls.APP_INSIGHTS_API_VERSION}&queryType={queryType}"
-        
+
         # Prepare the request body
         body = {
             "query": query,
             "timespan": f"P{timespan}"
         }
-        
+
         # Execute the query using Azure CLI's send_raw_request
         response = send_raw_request(
-            cmd.cli_ctx, 
-            "POST", 
-            url, 
+            cmd.cli_ctx,
+            "POST",
+            url,
             body=json.dumps(body),
             headers=["Content-Type=application/json"]
         )
-        
+
         result = response.json()
         if isinstance(result, dict) and 'error' in result:
             raise CLIError(f"Error retrieving invocations details: {result['error']}")
@@ -513,7 +512,7 @@ class ContainerAppFunctionsPreviewClient():
     @classmethod
     def list_function_keys(cls, cmd, resource_group_name, name, key_type, function_name=None, revision_name=None, replica_name=None, container_name=None):
         from .custom import containerapp_debug
-        
+
         command_fmt = ""
         if key_type != "functionKey":
             command_fmt = "/bin/azure-functions-admin keys list --key-type {}"
@@ -539,7 +538,7 @@ class ContainerAppFunctionsPreviewClient():
     def set_function_keys(cls, cmd, resource_group_name, name, key_type, key_name, key_value, function_name=None, revision_name=None, replica_name=None, container_name=None):
         """Set/Update function keys based on key type"""
         from .custom import containerapp_debug
-        
+
         command_fmt = ""
         if key_type != "functionKey":
             command_fmt = "/bin/azure-functions-admin keys set --key-type {} --key-name {}"
@@ -547,7 +546,7 @@ class ContainerAppFunctionsPreviewClient():
         else:
             command_fmt = "/bin/azure-functions-admin keys set --key-type {} --key-name {} --function-name {}"
             command = command_fmt.format(key_type, key_name, function_name)
-        
+
         if key_value is not None:
             command += " --key-value {}".format(key_value)
 
