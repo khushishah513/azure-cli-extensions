@@ -11,6 +11,38 @@ To release a new version, please select a new version number (usually plus 1 to 
 
 Pending
 +++++++
+* Vendor new SDK and bump API version to 2025-08-02-preview.
+* Pre-deprecate `--enable-custom-ca-trust` and `--disable-custom-ca-trust` in `az aks create`, `az aks update` commands.
+
+18.0.0b43
++++++++
+* Fix `--localdns-config` parameter to handle null values and case-insensitive JSON keys in DNS override sections, preventing crashes with malformed localdns configuration files.
+* Enhance `build_override` function to validate dictionary types and only initialize DNS overrides when present in localdns configuration (case-insensitive).
+* Refactor `build_localdns_profile` function to eliminate code duplication between AgentPool add and update operations.
+
+18.0.0b42
++++++++
+* Fix role assignment failure when using azure-cli version >= `2.77.0`.
+* Add option `Flatcar` to `--os-sku` for `az aks nodepool add` and `az aks nodepool update`.
+
+18.0.0b41
++++++++
+* Fix `--localdns-config` parameter to handle null values in JSON configuration files gracefully, preventing crashes when DNS override sections are null.
+* Add jwtauthenticator commands `az aks jwtauthenticator add/update/show/list/delete` to manage JWT authenticators for a managed cluster.
+* Fix an issue in disabling ACNS performance (--acns-datapath-acceleration-mode None).
+
+18.0.0b40
++++++++
+* Add option `Windows2025` to `--os-sku` for `az aks nodepool add`.
+* `az aks create`: Add new parameter `--container-storage-version` to enable the given version of Azure Container Storage.
+* `az aks update`: Add new parameter `--container-storage-version` to enable the given version of Azure Container Storage.
+* `az aks create`: Change behavior of `--enable-azure-container-storage` to enable latest Azure Container Storage by default.
+* `az aks update`: Change behavior of `--enable-azure-container-storage` to enable latest Azure Container Storage by default.
+* `az aks update`: Change behavior of `--disable-azure-container-storage` to handle disable based on the installed version.
+
+18.0.0b39
++++++++
+* Add option `AzureLinuxOSGuard` and `AzureLinux3OSGuard` to `--os-sku` for `az aks nodepool add` and `az aks nodepool update`.
 * Add machine command `az aks machine add` to add a machine to an existing machine pool.
 * Add blue-green upgrade strategy support for AKS node pools:
   - `az aks nodepool add/update/upgrade`: Add `--upgrade-strategy` parameter to switch between rolling and blue-green nodepool upgrades. 
