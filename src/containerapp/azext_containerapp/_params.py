@@ -541,11 +541,10 @@ def load_arguments(self, _):
 
     with self.argument_context('containerapp function') as c:
         c.argument('resource_group_name', arg_type=resource_group_name_type, id_part=None)
-        c.argument('name', options_list=['--name', '-n'], help="The name of the Container App.")
+        c.argument('name', name_type, id_part=None, options_list=['--name', '-n'], help="The name of the Container App.")
 
     with self.argument_context('containerapp function list') as c:
         c.argument('revision_name', options_list=['--revision', '-r'], help="The name of the revision to list functions from. It is required if container app is running in multiple or labels revision mode.")
-        c.ignore('ids')
 
     with self.argument_context('containerapp function show') as c:
         c.argument('function_name', options_list=['--function-name'], help="The name of the function to show details for.")
@@ -561,7 +560,6 @@ def load_arguments(self, _):
         c.argument('revision_name', options_list=['--revision'], help="The name of the container app revision. It is required if container app is running in multiple or labels revision mode.")
         c.argument('key_type', options_list=['--key-type'], arg_type=get_enum_type(['functionKey', 'hostKey', 'masterKey', 'systemKey']), help="The type of the keys to list.", required=True)
         c.argument('function_name', options_list=['--function-name'], help="The name of the function. Required only when key-type is functionKey.")
-        c.ignore('ids')
 
     with self.argument_context('containerapp function keys set') as c:
         c.argument('revision_name', options_list=['--revision'], help="The name of the container app revision. It is required if container app is running in multiple or labels revision mode.")
