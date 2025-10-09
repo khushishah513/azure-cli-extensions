@@ -28,7 +28,7 @@ logger = get_logger(__name__)
 # called directly from custom method bc otherwise it disrupts the --environment auto RID functionality
 def validate_create(registry_identity, registry_pass, registry_user, registry_server, no_wait, revisions_mode=None, target_label=None, source=None, artifact=None, repo=None, yaml=None, environment_type=None):
     from ._utils import is_registry_msi_system_environment
-
+    
     if source and repo:
         raise MutuallyExclusiveArgumentError("Usage error: --source and --repo cannot be used together. Can either deploy from a local directory or a GitHub repository")
     if (source or repo) and yaml:
@@ -239,7 +239,7 @@ def validate_debug(cmd, namespace):
 
 def _set_debug_defaults(cmd, namespace):
     from ._clients import ContainerAppPreviewClient
-
+    
     app = ContainerAppPreviewClient.show(cmd, namespace.resource_group_name, namespace.name)
     if not app:
         raise ResourceNotFoundError("Could not find a container app")
@@ -279,7 +279,7 @@ def _set_debug_defaults(cmd, namespace):
         if revision_containers:
             namespace.container = revision_containers[0]["name"]
 
-
+    
 def validate_container_app_exists(cmd, resource_group_name, container_app_name):
     from ._client_factory import handle_raw_exception
     from ._clients import ContainerAppPreviewClient
