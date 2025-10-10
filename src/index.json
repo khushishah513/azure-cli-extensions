@@ -54753,6 +54753,49 @@
                     "version": "1.0.0b6"
                 },
                 "sha256Digest": "e183c9092301afed747fe15142d3a2ab06e113a3ce007a5815071d112269a738"
+            },
+            {
+                "downloadUrl": "https://azcliprod.blob.core.windows.net/cli-extensions/datamigration-1.0.0-py3-none-any.whl",
+                "filename": "datamigration-1.0.0-py3-none-any.whl",
+                "metadata": {
+                    "azext.isPreview": false,
+                    "azext.minCliCoreVersion": "2.75.0",
+                    "classifiers": [
+                        "Development Status :: 4 - Beta",
+                        "Intended Audience :: Developers",
+                        "Intended Audience :: System Administrators",
+                        "Programming Language :: Python",
+                        "Programming Language :: Python :: 3",
+                        "Programming Language :: Python :: 3.6",
+                        "Programming Language :: Python :: 3.7",
+                        "Programming Language :: Python :: 3.8",
+                        "License :: OSI Approved :: MIT License"
+                    ],
+                    "extensions": {
+                        "python.details": {
+                            "contacts": [
+                                {
+                                    "email": "azpycli@microsoft.com",
+                                    "name": "Microsoft Corporation",
+                                    "role": "author"
+                                }
+                            ],
+                            "document_names": {
+                                "description": "DESCRIPTION.rst"
+                            },
+                            "project_urls": {
+                                "Home": "https://github.com/Azure/azure-cli-extensions/tree/master/src/datamigration"
+                            }
+                        }
+                    },
+                    "generator": "bdist_wheel (0.30.0)",
+                    "license": "MIT",
+                    "metadata_version": "2.0",
+                    "name": "datamigration",
+                    "summary": "Microsoft Azure Command-Line Tools DataMigrationManagementClient Extension",
+                    "version": "1.0.0"
+                },
+                "sha256Digest": "57558417dd858dd7010626828f1b3f0ed786ddce37b2a6f7a8a098f9e8848387"
             }
         ],
         "dataprotection": [
