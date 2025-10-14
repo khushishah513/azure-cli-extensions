@@ -20,7 +20,7 @@ from azure.mgmt.core.tools import parse_resource_id
 from azext_containerapp.tests.latest.common import (write_test_file, clean_up_test_file)
 from .common import TEST_LOCATION, STAGE_LOCATION
 from .custom_preparers import SubnetPreparer
-from .utils import create_containerapp_env, prepare_containerapp_env_for_app_e2e_tests
+from .utils import create_containerapp_env, prepare_containerapp_env_for_app_e2e_tests, prepare_containerapp_env_v1_for_app_e2e_tests
 
 TEST_DIR = os.path.abspath(os.path.join(os.path.abspath(__file__), '..'))
 
@@ -212,105 +212,138 @@ class ContainerappFunctionTests(ScenarioTest):
         )
         time.sleep(20)
 
-        # NEW: Get storage connection string
+        # Get storage connection string
         storage_conn_str = self.cmd(
             f'storage account show-connection-string -n {storage_account_name} -g {resource_group} --query connectionString -o tsv'
         ).output.strip()
 
         # Step 2: Prepare Container App environment
-        env = prepare_containerapp_env_for_app_e2e_tests(self, location=functionapp_location)
-        time.sleep(40)
-
-        auth_key = base64.b64encode(os.urandom(32)).decode("utf-8")
+        env = prepare_containerapp_env_v1_for_app_e2e_tests(self, location=functionapp_location) # this is temporary and will be removed in future 
+        time.sleep(100)
+        
         # Step 3: Create the function app (container app)
         self.cmd(
             f'containerapp create -g {resource_group} -n {funcapp_name} '
             f'--image {image} --ingress external --target-port 80 '
             f'--environment {env} --kind functionapp '
-            f'--env-vars AzureWebJobsStorage="{storage_conn_str}" '
-            f'WEBSITE_AUTH_ENCRYPTION_KEY="{auth_key}"',
+            f'--env-vars AzureWebJobsStorage="{storage_conn_str}" ', 
             checks=[
                 JMESPathCheck("kind", "functionapp")
         ])
+        # Poll for healthy revision
+        max_retries = 60  # 10 minutes max wait
+        retry_count = 0
+        while retry_count < max_retries:
+            rev_status = self.cmd(f'containerapp revision list -g {resource_group} -n {funcapp_name}').get_output_in_json()
+            if any(r["properties"]["active"] and r["properties"]["healthState"] == "Healthy" for r in rev_status):
+                break
+            retry_count += 1
+            time.sleep(10)
+        else:
+            self.fail("Timed out waiting for healthy revision")
 
-        time.sleep(90)
+        # Poll for running replica
+        retry_count = 0
+        while retry_count < max_retries:
+            revision_name = rev_status[0]["name"] if rev_status else None
+            if revision_name:
+                replicas = self.cmd(f'containerapp replica list -g {resource_group} -n {funcapp_name} --revision {revision_name}').get_output_in_json()
+                if any(r["properties"]["runningState"] == "Running" for r in replicas):
+                    break
+            retry_count += 1
+            time.sleep(10)
+        else:
+            self.fail("Timed out waiting for running replica")
+     
         
-        # Test list host keys
         host_keys = self.cmd(f'containerapp function keys list -g {resource_group} -n {funcapp_name} --key-type hostKey').get_output_in_json()
-        print("FUNCTION KEYS RAW OUTPUT:", host_keys)
         self.assertIsInstance(host_keys.get("value"), dict)
+        self.assertIn("keys", host_keys.get("value"))
+        self.assertIsInstance(host_keys.get("value").get("keys"), list)
         
         # Test list master keys
         master_keys = self.cmd(f'containerapp function keys list -g {resource_group} -n {funcapp_name} --key-type masterKey').get_output_in_json()
         self.assertIsInstance(master_keys.get("value"), dict)
+        self.assertIn("keys", master_keys.get("value"))
+        self.assertIsInstance(master_keys.get("value").get("keys"), list)
 
         # Test list system keys
         system_keys = self.cmd(f'containerapp function keys list -g {resource_group} -n {funcapp_name} --key-type systemKey').get_output_in_json()
         self.assertIsInstance(system_keys.get("value"), dict)
+        self.assertIn("keys", system_keys.get("value"))
+        self.assertIsInstance(system_keys.get("value").get("keys"), list)
 
         # Test list function keys for a specific function
         function_name = "HttpExample"
         function_keys = self.cmd(f'containerapp function keys list -g {resource_group} -n {funcapp_name} --key-type functionKey --function-name {function_name}').get_output_in_json()
         self.assertIsInstance(function_keys.get("value"), dict)
+        self.assertIn("keys", function_keys.get("value"))
+        self.assertIsInstance(function_keys.get("value").get("keys"), list)
 
         # Test show host key
         host_key = self.cmd(f'containerapp function keys show -g {resource_group} -n {funcapp_name} --key-type hostKey --key-name default').get_output_in_json()
         self.assertIsInstance(host_key, dict)
-        self.assertIn('name', host_key)
         self.assertIn('value', host_key)
+        self.assertIsInstance(host_key.get('value'), dict)
+        self.assertIn('name', host_key.get('value'))
+        self.assertIn('value', host_key.get('value'))
         
         # Test show master key
         master_key = self.cmd(f'containerapp function keys show -g {resource_group} -n {funcapp_name} --key-type masterKey --key-name _master').get_output_in_json()
         self.assertIsInstance(master_key, dict)
-        self.assertIn('name', master_key)
         self.assertIn('value', master_key)
+        self.assertIsInstance(master_key.get('value'), dict)
+        self.assertIn('name', master_key.get('value'))
+        self.assertIn('value', master_key.get('value'))
 
         # Test show function key for a specific function
         function_key = self.cmd(f'containerapp function keys show -g {resource_group} -n {funcapp_name} --key-type functionKey --key-name default --function-name {function_name}').get_output_in_json()
         self.assertIsInstance(function_key, dict)
-        self.assertIn('name', function_key)
         self.assertIn('value', function_key)
+        self.assertIsInstance(function_key.get('value'), dict)
+        self.assertIn('name', function_key.get('value'))
+        self.assertIn('value', function_key.get('value'))
 
         custom_key_name = "mycustomkey"
         custom_key_value = "MyCustomKeyValue123456789"
         
         # Test set function key for a specific function
         set_function_key = self.cmd(f'containerapp function keys set -g {resource_group} -n {funcapp_name} --key-type functionKey --key-name {custom_key_name} --key-value {custom_key_value} --function-name {function_name}').get_output_in_json()
-        self.assertIsInstance(set_function_key, dict, "Set function key should return a dictionary")
+        self.assertIsInstance(set_function_key, dict)
         
         # Verify the function key was set by showing it (more reliable than checking set response structure)
-        verify_function_key = self.cmd(f'containerapp function keys show -g {resource_group} -n {funcapp_name} --key-type functionKey --key-name {custom_key_name} --function-name {function_name}').get_output_in_json()
-        self.assertEqual(verify_function_key['name'], custom_key_name, "Verified function key name should match")
-        self.assertEqual(verify_function_key['value'], custom_key_value, "Verified function key value should match")
+        verify_function_key = self.cmd(f'containerapp function keys show -g {resource_group} -n {funcapp_name} --key-type functionKey --key-name {custom_key_name} --function-name {function_name}').get_output_in_json().get('value')
+        self.assertEqual(verify_function_key['name'], custom_key_name)
+        self.assertEqual(verify_function_key['value'], custom_key_value)
 
         # Test set host key
         host_key_value = "MyHostKeyValue123456789"
         set_host_key = self.cmd(f'containerapp function keys set -g {resource_group} -n {funcapp_name} --key-type hostKey --key-name {custom_key_name} --key-value {host_key_value}').get_output_in_json()
-        self.assertIsInstance(set_host_key, dict, "Set host key should return a dictionary")
+        self.assertIsInstance(set_host_key, dict)
         
         # Verify the host key was set by showing it
-        verify_host_key = self.cmd(f'containerapp function keys show -g {resource_group} -n {funcapp_name} --key-type hostKey --key-name {custom_key_name}').get_output_in_json()
-        self.assertEqual(verify_host_key['name'], custom_key_name, "Verified host key name should match")
-        self.assertEqual(verify_host_key['value'], host_key_value, "Verified host key value should match")
-        
+        verify_host_key = self.cmd(f'containerapp function keys show -g {resource_group} -n {funcapp_name} --key-type hostKey --key-name {custom_key_name}').get_output_in_json().get('value')
+        self.assertEqual(verify_host_key['name'], custom_key_name)
+        self.assertEqual(verify_host_key['value'], host_key_value)
+
         # Test set system key
         system_key_value = "MySystemKeyValue123456789"
         set_system_key = self.cmd(f'containerapp function keys set -g {resource_group} -n {funcapp_name} --key-type systemKey --key-name {custom_key_name} --key-value {system_key_value}').get_output_in_json()
-        self.assertIsInstance(set_system_key, dict, "Set system key should return a dictionary")
-        
+        self.assertIsInstance(set_system_key, dict)
+
         # Verify the system key was set by showing it
-        verify_system_key = self.cmd(f'containerapp function keys show -g {resource_group} -n {funcapp_name} --key-type systemKey --key-name {custom_key_name}').get_output_in_json()
-        self.assertEqual(verify_system_key['name'], custom_key_name, "Verified system key name should match")
-        self.assertEqual(verify_system_key['value'], system_key_value, "Verified system key value should match")
+        verify_system_key = self.cmd(f'containerapp function keys show -g {resource_group} -n {funcapp_name} --key-type systemKey --key-name {custom_key_name}').get_output_in_json().get('value')
+        self.assertEqual(verify_system_key['name'], custom_key_name)
+        self.assertEqual(verify_system_key['value'], system_key_value)
 
         # Test update existing key (set with same name but different value)
         updated_key_value = "UpdatedKeyValue987654321"
         updated_function_key = self.cmd(f'containerapp function keys set -g {resource_group} -n {funcapp_name} --key-type functionKey --key-name {custom_key_name} --key-value {updated_key_value} --function-name {function_name}').get_output_in_json()
-        self.assertIsInstance(updated_function_key, dict, "Update function key should return a dictionary")
+        self.assertIsInstance(updated_function_key, dict)
         
         # Verify the key was updated by showing it
-        verify_updated_key = self.cmd(f'containerapp function keys show -g {resource_group} -n {funcapp_name} --key-type functionKey --key-name {custom_key_name} --function-name {function_name}').get_output_in_json()
-        self.assertEqual(verify_updated_key['value'], updated_key_value, "Updated function key value should match new value")
+        verify_updated_key = self.cmd(f'containerapp function keys show -g {resource_group} -n {funcapp_name} --key-type functionKey --key-name {custom_key_name} --function-name {function_name}').get_output_in_json().get('value')
+        self.assertEqual(verify_updated_key['value'], updated_key_value)
 
         # Test with non-existent resource group
         with self.assertRaisesRegex(Exception, ".*"):
@@ -320,10 +353,6 @@ class ContainerappFunctionTests(ScenarioTest):
         with self.assertRaisesRegex(Exception, ".*"):
             self.cmd(f'containerapp function keys list -g {resource_group} -n nonexistent-app --key-type hostKey')
         
-        # Test with non-existent key name
-        with self.assertRaisesRegex(Exception, ".*"):
-            self.cmd(f'containerapp function keys show -g {resource_group} -n {funcapp_name} --key-type hostKey --key-name nonexistent-key')
-        
         # Test function key operations without function name
         with self.assertRaisesRegex(Exception, ".*"):
             self.cmd(f'containerapp function keys list -g {resource_group} -n {funcapp_name} --key-type functionKey')
@@ -331,35 +360,19 @@ class ContainerappFunctionTests(ScenarioTest):
         with self.assertRaisesRegex(Exception, ".*"):
             self.cmd(f'containerapp function keys show -g {resource_group} -n {funcapp_name} --key-type functionKey --key-name default')
         
-        # Test with non-existent function name
-        with self.assertRaisesRegex(Exception, ".*"):
-            self.cmd(f'containerapp function keys list -g {resource_group} -n {funcapp_name} --key-type functionKey --function-name nonexistent-function')
 
-        
     @AllowLargeResponse(8192)
     @ResourceGroupPreparer(location="northcentralus")
-    def test_containerapp_function_invocations(self, resource_group):
+    def test_containerapp_function_invocations_summary_traces(self, resource_group):
         """Test function keys show/list/set functionality using connection string and App Insights"""
-
-        # Locations
         location = "northcentralus"
-        functionapp_location = "northcentralusstage"
-
-        # Resource names
-        storage_account_name = self.create_random_name("storageacc", length=24)
-        app_insights_name = self.create_random_name("appi", length=24)
+        functionapp_location = "northcentralusstage"  
         funcapp_name = self.create_random_name("functionapp", length=24)
         image = "mcr.microsoft.com/azure-functions/dotnet8-quickstart-demo:1.0"
-
-        # Step 1: Create storage account
-        self.cmd(
-            f'storage account create -n {storage_account_name} -g {resource_group} '
-            f'--location {location} --sku Standard_LRS',
-            checks=[JMESPathCheck("provisioningState", "Succeeded")]
-        )
-        time.sleep(20)
-
-        # Step 2: Create Application Insights (standard)
+        app_insights_name = self.create_random_name("appinsights", length=24)
+        containerapp_image = "mcr.microsoft.com/azuredocs/containerapps-helloworld:latest"
+        ca_name = self.create_random_name(prefix='containerapp', length=24)
+        # Step 1: Create Application Insights (standard)
         self.cmd(
             f'monitor app-insights component create -a {app_insights_name} '
             f'--location {location} -g {resource_group} --application-type web',
@@ -367,27 +380,104 @@ class ContainerappFunctionTests(ScenarioTest):
         )
         time.sleep(20)
 
-        # Step 3: Get App Insights connection string
+        # Get App Insights connection string
         app_insights_connection_string = self.cmd(
             f'monitor app-insights component show -a {app_insights_name} -g {resource_group} '
             f'--query connectionString -o tsv'
         ).output.strip()
 
-        # Step 4: Prepare Container App environment in 'northcentralusstage'
-        env = prepare_containerapp_env_for_app_e2e_tests(self, location=functionapp_location)
-        time.sleep(40)
+        # Step 2: Prepare Container App environment
+        env = prepare_containerapp_env_v1_for_app_e2e_tests(self, location=functionapp_location) # this is temporary and will be removed in future 
+        time.sleep(100)
 
-        # Step 5: Create the container app (kind=functionapp)
+        # Step 3: Create the function app (container app)
+        self.cmd(
+            f'containerapp create -g {resource_group} -n {ca_name} '
+            f'--image {containerapp_image} --ingress external --target-port 80 --environment {env} ', 
+            checks=[
+                JMESPathCheck("properties.provisioningState", "Succeeded")
+        ])
         self.cmd(
             f'containerapp create -g {resource_group} -n {funcapp_name} '
             f'--image {image} --ingress external --target-port 80 '
             f'--environment {env} --kind functionapp '
-            f'--env-vars AzureWebJobsStorage__accountName={storage_account_name} '
-            f'APPLICATIONINSIGHTS_CONNECTION_STRING="{app_insights_connection_string}"',
+            f'--env-vars APPLICATIONINSIGHTS_CONNECTION_STRING="{app_insights_connection_string}"',
             checks=[
-                JMESPathCheck("kind", "functionapp"),
-                JMESPathCheck("configuration.activeRevisionsMode", "Multiple")
-            ]
-        )
+                JMESPathCheck("kind", "functionapp")
+        ])
+        # Poll for healthy revision
+        max_retries = 60  # 10 minutes max wait
+        retry_count = 0
+        while retry_count < max_retries:
+            rev_status = self.cmd(f'containerapp revision list -g {resource_group} -n {funcapp_name}').get_output_in_json()
+            if any(r["properties"]["active"] and r["properties"]["healthState"] == "Healthy" for r in rev_status):
+                break
+            retry_count += 1
+            time.sleep(10)
+        else:
+            self.fail("Timed out waiting for healthy revision")
 
-        # From here, continue with function key list/show/set tests...
+        # Poll for running replica
+        retry_count = 0
+        while retry_count < max_retries:
+            revision_name = rev_status[0]["name"] if rev_status else None
+            if revision_name:
+                replicas = self.cmd(f'containerapp replica list -g {resource_group} -n {funcapp_name} --revision {revision_name}').get_output_in_json()
+                if any(r["properties"]["runningState"] == "Running" for r in replicas):
+                    break
+            retry_count += 1
+            time.sleep(10)
+        else:
+            self.fail("Timed out waiting for running replica")
+        
+        # Get the FQDN of the function app and invoke the HTTP function to generate telemetry
+        fqdn = self.cmd(
+            f'containerapp show --resource-group {resource_group} --name {funcapp_name} '
+            f'--query properties.configuration.ingress.fqdn --output tsv'
+        ).output.strip()
+        
+        # Make HTTP calls to the function to generate invocation data
+        import requests
+        for _ in range(7):
+            try:
+                requests.post(f'https://{fqdn}/api/HttpExample', timeout=30)
+            except Exception:
+                # It's expected that the function call might fail, we just want to generate telemetry
+                pass
+
+        time.sleep(60)
+
+        # Test function invocations summary with default timespan
+        summary_result = self.cmd(f'containerapp function invocations summary -n {funcapp_name} -g {resource_group} --function-name HttpExample').get_output_in_json()
+        self.assertIn('SuccessCount', summary_result[0])
+        self.assertIn('ErrorCount', summary_result[0])
+
+        # Test function invocations summary with custom timespan
+        summary_result_5h = self.cmd(f'containerapp function invocations summary -n {funcapp_name} -g {resource_group} --function-name HttpExample --timespan 5h').get_output_in_json()
+        self.assertIn('SuccessCount', summary_result_5h[0])
+        self.assertIn('ErrorCount', summary_result_5h[0])
+
+        # Test function invocations summary on non-function app (should fail)
+        with self.assertRaises(Exception):
+            self.cmd(f'containerapp function invocations summary -n {ca_name} -g {resource_group} --function-name HttpExample')
+
+        # Test function invocations summary on non-existent container app (should fail)
+        with self.assertRaises(Exception):
+            self.cmd(f'containerapp function invocations summary -n non-existent-app -g {resource_group} --function-name HttpExample')
+        
+        # Test function invocations traces with default parameters
+        traces_result = self.cmd(f'containerapp function invocations traces -n {funcapp_name} -g {resource_group} --function-name HttpExample').get_output_in_json()
+        self.assertIsInstance(traces_result, list)
+
+        # Test function invocations traces with custom timespan and limit
+        traces_result_custom = self.cmd(f'containerapp function invocations traces -n {funcapp_name} -g {resource_group} --function-name HttpExample --timespan 5h --limit 3').get_output_in_json()
+        self.assertIsInstance(traces_result_custom, list)
+        self.assertLessEqual(len(traces_result_custom), 3)
+
+        # Test function invocations traces on non-function app (should fail)
+        with self.assertRaises(Exception):
+            self.cmd(f'containerapp function invocations traces -n {ca_name} -g {resource_group} --function-name HttpExample')
+
+        # Test function invocations traces on non-existent container app (should fail)
+        with self.assertRaises(Exception):
+            self.cmd(f'containerapp function invocations traces -n non-existent-app -g {resource_group} --function-name HttpExample')

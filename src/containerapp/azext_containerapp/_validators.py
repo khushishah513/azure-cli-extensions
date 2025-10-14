@@ -346,9 +346,8 @@ def validate_functionapp_kind(cmd, resource_group_name, container_app_name):
     )
 
     kind = safe_get(containerapp_def, "kind")
-    managed_by = safe_get(containerapp_def, "managedBy")
 
-    if (managed_by and "providers/microsoft.web/sites" in managed_by.lower()) or (kind and kind.lower() == "functionapp"):
+    if kind and kind.lower() == "functionapp":
         logger.debug("Container app '%s' validated as Azure Function App", container_app_name)
         return
 

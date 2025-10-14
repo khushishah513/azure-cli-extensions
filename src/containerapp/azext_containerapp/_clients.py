@@ -409,7 +409,7 @@ class ContainerAppFunctionsPreviewClient():
         invocation_traces_query = (
             f"requests | extend functionNameFromCustomDimension = tostring(customDimensions['faas.name']) "
             f"| project timestamp, id, operation_Name, success, resultCode, duration, operation_Id, functionNameFromCustomDimension, "
-            f"cloud_RoleName, invocationId=coalesce(tostring(customDimensions['InvocationId']), tostring(customDimensions['faas.invocation_id'])) "
+            f"cloud_RoleName, cloud_RoleInstance, invocationId=coalesce(tostring(customDimensions['InvocationId']), tostring(customDimensions['faas.invocation_id'])) "
             f"| where timestamp > ago({timespan}) "
             f"| where cloud_RoleName =~ '{container_app_name}' "
             f"| where cloud_RoleInstance contains '{revision_name}' "
